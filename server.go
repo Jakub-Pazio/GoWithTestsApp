@@ -1,23 +1,59 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"poker/player"
 	"strings"
 	"sync"
 )
 
+const jsonContentType = "application/json"
+
 type PlayerStore interface {
 	GetPlayerScore(name string) (int, error)
 	RecordWin(name string) error
+	GetLeague() ([]player.Player, error)
 }
 
 type PlayerServer struct {
 	store PlayerStore
+	// it is an embeded (field?) our type now implement this interface, but we need to assign object/function
+	// with required methods of interface. In this case ServeHTTP and http.NewServerMux does that
+	http.Handler
 }
 
-func (p *PlayerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func NewPlayerServer(store PlayerStore) *PlayerServer {
+	server := new(PlayerServer)
+
+	server.store = store
+	router := http.NewServeMux()
+
+	router.Handle("/league", http.HandlerFunc(server.leagueHandler))
+	router.Handle("/players/", http.HandlerFunc(server.playersHandler))
+
+	server.Handler = router
+
+	return server
+}
+
+func (p *PlayerServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
+	players, err := p.store.GetLeague()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "error: %s", err)
+		return
+	}
+
+	w.Header().Set("content-type", jsonContentType)
+	json.NewEncoder(w).Encode(players)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (p *PlayerServer) playersHandler(w http.ResponseWriter, r *http.Request) {
 	player := strings.TrimPrefix(r.URL.String(), "/players/")
 
 	switch r.Method {
@@ -67,4 +103,10 @@ func (s *StubPlayerStore) RecordWin(name string) error {
 	s.scores[name]++
 	s.winCalls = append(s.winCalls, name)
 	return nil
+}
+
+func (s *StubPlayerStore) GetLeague() ([]player.Player, error) {
+	return []player.Player{
+		{Name: "Jan", Wins: 2137},
+	}, nil
 }

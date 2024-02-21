@@ -11,6 +11,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("cant connect to db: %s", err.Error())
 	}
-	server := &PlayerServer{store: store}
+
+	server := NewPlayerServer(store)
 	log.Fatal(http.ListenAndServe(":5050", server))
 }

@@ -9,7 +9,7 @@ import (
 
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 	store := StubPlayerStore{scores: map[string]int{}}
-	server := &PlayerServer{store: &store}
+	server := NewPlayerServer(&store)
 	player := "Pepper"
 
 	server.ServeHTTP(httptest.NewRecorder(), newPostScoreRequest(player))

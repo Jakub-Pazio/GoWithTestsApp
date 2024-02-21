@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"poker/player"
 	"sync"
 
 	"github.com/jackc/pgx/v5"
@@ -69,4 +70,30 @@ func (p *PostgreSQLStore) RecordWin(player string) error {
 	}
 
 	return nil
+}
+
+func (p *PostgreSQLStore) GetLeague() ([]player.Player, error) {
+	var players []player.Player
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	rows, err := p.conn.Query(context.Background(), "SELECT name, score FROM players")
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var name string
+		var score int
+
+		err = rows.Scan(&name, &score)
+		if err != nil {
+			return nil, err
+		}
+
+		players = append(players, player.Player{Name: name, Wins: score})
+	}
+
+	return players, nil
 }

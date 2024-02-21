@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"poker/player"
 	psqlstore "poker/psqlStore"
 	"slices"
 	"sync"
@@ -15,7 +17,7 @@ func TestGETPlayers(t *testing.T) {
 		"Alice": 20,
 		"Bob":   10,
 	}}
-	server := &PlayerServer{store: stubStore}
+	server := NewPlayerServer(stubStore)
 
 	t.Run("returning score of player A", func(t *testing.T) {
 		request := newGetScoreRequest("Alice")
@@ -57,7 +59,7 @@ func TestGETPlayers(t *testing.T) {
 func TestStoreWins(t *testing.T) {
 	t.Run("single set winner test", func(t *testing.T) {
 		store := StubPlayerStore{scores: map[string]int{}}
-		server := &PlayerServer{store: &store}
+		server := NewPlayerServer(&store)
 		winnerName := "Alice"
 		request := newPostScoreRequest(winnerName)
 		response := httptest.NewRecorder()
@@ -79,7 +81,7 @@ func TestStoreWins(t *testing.T) {
 		threadNr := 1000
 
 		store := StubPlayerStore{scores: map[string]int{}}
-		server := &PlayerServer{store: &store}
+		server := NewPlayerServer(&store)
 		var wg sync.WaitGroup
 		for i := range threadNr {
 			wg.Add(1)
@@ -108,7 +110,7 @@ func TestPostgreSQLStore(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cant create conn to db: %s", err)
 		}
-		server := &PlayerServer{store: store}
+		server := NewPlayerServer(store)
 		userName := "Pudzian"
 
 		var wg sync.WaitGroup
@@ -127,6 +129,33 @@ func TestPostgreSQLStore(t *testing.T) {
 	})
 }
 
+func TestLeague(t *testing.T) {
+	stubStore := &StubPlayerStore{scores: map[string]int{
+		"Alice": 20,
+		"Bob":   10,
+	}}
+	server := NewPlayerServer(stubStore)
+
+	t.Run("returns Status OK on /league", func(t *testing.T) {
+		request := newGetLeagueRequest()
+		response := httptest.NewRecorder()
+
+		server.ServeHTTP(response, request)
+
+		var got []player.Player
+
+		err := json.NewDecoder(response.Body).Decode(&got)
+		if err != nil {
+			t.Errorf("error when parsing response from server %s", err)
+		}
+
+		want := http.StatusOK
+		status := response.Result().StatusCode
+
+		assertCode(t, status, want)
+	})
+}
+
 func newGetScoreRequest(name string) *http.Request {
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/players/%s", name), nil)
 	return req
@@ -134,6 +163,11 @@ func newGetScoreRequest(name string) *http.Request {
 
 func newPostScoreRequest(name string) *http.Request {
 	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/players/%s", name), nil)
+	return req
+}
+
+func newGetLeagueRequest() *http.Request {
+	req, _ := http.NewRequest(http.MethodGet, "/league", nil)
 	return req
 }
 
