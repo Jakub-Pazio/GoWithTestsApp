@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"poker/player"
+	"sort"
 	"sync"
 
 	"github.com/jackc/pgx/v5"
@@ -94,6 +95,10 @@ func (p *PostgreSQLStore) GetLeague() ([]player.Player, error) {
 
 		players = append(players, player.Player{Name: name, Wins: score})
 	}
+
+	sort.Slice(players, func(i, j int) bool {
+		return players[i].Wins > players[j].Wins
+	})
 
 	return players, nil
 }
