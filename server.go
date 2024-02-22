@@ -10,6 +10,10 @@ import (
 	"sync"
 )
 
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+}
+
 const jsonContentType = "application/json"
 
 type PlayerStore interface {
@@ -40,6 +44,7 @@ func NewPlayerServer(store PlayerStore) *PlayerServer {
 }
 
 func (p *PlayerServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	players, err := p.store.GetLeague()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
